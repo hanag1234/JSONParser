@@ -1,0 +1,51 @@
+{
+  "people": [
+    {
+      "id": 1,
+      "name": "John Doe",
+      "age": 30,
+      "email": "john.doe@example.com",
+      "isActive": true,
+      "address": {
+        "street": "123 Main St",
+        "city": "Anytown",
+        "state": "CA",
+        "zip": "90210"
+      },
+      "friends": [
+        {"id": 2, "name": "Jane Doe"},
+        {"id": 3, "name": "Jim Doe"}
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Jane Doe",
+      "age": 25,
+      "email": "jane.doe@example.com",
+      "isActive": false,
+      "address": {
+        "street": "456 Oak St",
+        "city": "Othertown",
+        "state": "TX",
+        "zip": "73301"
+      },
+      "friends": [
+        {"id": 1, "name": "John Doe"},
+        {"id": 3, "name": "bobb Doe"}
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Jim Doe",
+      "age": 35,
+      "email": "jimm.doe@example.com",
+      "isActive": true,
+      "address": {
+        "street": "789 Pine St",
+        "city": "Somewhere over the rainbow",
+        "state": "FL",
+        "zip": "33101"
+      }
+    }
+  ]
+}
