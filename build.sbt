@@ -7,3 +7,5 @@ libraryDependencies ++= Seq(
   "org.meerkat" %% "meerkat" % "0.1.0",
   "org.bitbucket.inkytonik.dsinfo" %% "dsinfo" % "0.4.0"
 )
+
+fork := true

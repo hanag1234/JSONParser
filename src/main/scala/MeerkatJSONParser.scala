@@ -4,7 +4,7 @@ import org.meerkat.parsers._
 import Parsers._
 
 class MeerkatJSONParser{
-  val num: Nonterminal = syn("[0-9]".r)
+  val num: Nonterminal = syn("[0-9]+".r)
   val str: Nonterminal = syn("\"[^\"]*\"".r)
   val `null`: Nonterminal = syn("null")
   val bool: Nonterminal = syn("true" | "false")
