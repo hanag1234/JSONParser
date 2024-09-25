@@ -17,18 +17,21 @@ object Main{
     // Read the specific JSON file
     val json = Source.fromResource("complex10k.json").getLines().mkString
 
-    profileParser("Plain", json, timePlainParser)
-    profileParser("Packrat", json, timePackratParser)
-    profileParser("Meerkat", json, timeMeerkatParser)
+    val parserName = args(0)
 
-    println("\nRunning benchmarks for Plain Parser:")
-    runBenchmark("Plain Parser", timePlainParser(json))
+    val parser = parserName match {
+      case "plain" => timePlainParser _
+      case "packrat" => timePackratParser _
+      case "meerkat" => timeMeerkatParser _
+      case _ => throw new IllegalArgumentException("Invalid parser type")
+    }
 
-    println("\nRunning benchmarks for Packrat Parser:")
-    runBenchmark("Packrat Parser", timePackratParser(json))
+    println(s"Running benchmarks for $parserName parser...")
+    runBenchmark(parserName, () => parser(json))
+  }
 
-    println("\nRunning benchmarks for Meerkat Parser:")
-    runBenchmark("Meerkat Parser", timeMeerkatParser(json))
+  def readTestData(name: String): String = {
+    Source.fromResource(name).getLines().mkString
   }
 
   // Function to time the plain parser
@@ -78,18 +81,21 @@ object Main{
   }
 
   // Run warm-up and valid runs for 3 parsers
-  def runBenchmark[T](parserName: String, parserFunc: => Long): Unit = {
-    val times = (1 to 10).flatMap { run =>
-      val timeTaken = parserFunc
-      if (run <= 3) {
-        println(s"$parserName warm-up run $run: $timeTaken ms")
-        None // Discard first 3 runs
-      } else {
-        println(s"$parserName valid run $run: $timeTaken ms")
-        Some(timeTaken)
-      }
+  def runBenchmark[T](parserName: String, parserFunc: ()  => Long): Unit = {
+    val warmUpRuns = 100
+    println(s"Running $warmUpRuns warm-up runs for $parserName parser...")
+    1 to warmUpRuns foreach { run =>
+      parserFunc()
+    }
+
+    val runs = 300
+
+    val times = (1 to runs).map { run =>
+      val timeTaken = parserFunc()
+      //println(s"$parserName valid run $run: $timeTaken ms")
+      timeTaken
     }
     val avgTime = times.sum.toDouble / times.length
-    println(s"$parserName average time after warm-up: $avgTime ms")
+    println(f"$parserName average time after warm-up: $avgTime%.2f ms")
   }
 }
