@@ -35,26 +35,28 @@ object Main{
   }
 
   // Function to time the plain parser
-  def timePlainParser(json: String): Long = {
-    val start = System.nanoTime()
+  def timePlainParser(json: String): Unit = {
     plainParser.parseAll(plainParser.obj, json)
-    val end = System.nanoTime()
-    (end - start) / 1000000
   }
 
   // Function to time the packrat parser
-  def timePackratParser(json: String): Long = {
-    val start = System.nanoTime()
+  def timePackratParser(json: String): Unit = {
     packratParser.parseAll(packratParser.obj, json)
-    val end = System.nanoTime()
-    (end - start) / 1000000
   }
   // Function to time the Meerkat parser
-  def timeMeerkatParser(json: String): Long = {
-    val start = System.nanoTime()
+  def timeMeerkatParser(json: String): Unit = {
     exec(meerkatParser.value, json)
-    val end = System.nanoTime()
-    (end - start) / 1000000
+  }
+
+  def compareParsers(input: String): Boolean = {
+    val expected = plainParser.parseAll(plainParser.value, input) match {
+      case plainParser.Success(result, _) => result
+      case _ => ???  // should not happen
+    }
+
+    val actual: JSONValue = ??? // run meerkat parser
+
+    expected == actual
   }
 
   // Error handling
@@ -70,7 +72,7 @@ object Main{
   }
 
   // measure time and memory usage
-  def profileParser(parserType: String, json: String, parsingFunc: String => Long): Unit = {
+  def profileParser(parserType: String, json: String, parsingFunc: String => Unit): Unit = {
     println(s"\nProfiling $parserType parser...")
     val memBefore = Runtime.getRuntime.totalMemory() - Runtime.getRuntime.freeMemory()
     val timeTaken = parsingFunc(json)
@@ -81,21 +83,19 @@ object Main{
   }
 
   // Run warm-up and valid runs for 3 parsers
-  def runBenchmark[T](parserName: String, parserFunc: ()  => Long): Unit = {
-    val warmUpRuns = 100
+  def runBenchmark[T](parserName: String, parserFunc: ()  => Unit): Unit = {
+    val warmUpRuns = 200
     println(s"Running $warmUpRuns warm-up runs for $parserName parser...")
-    1 to warmUpRuns foreach { run =>
+    1 to warmUpRuns foreach { _ =>
       parserFunc()
     }
 
-    val runs = 300
+    val runs = 500
 
-    val times = (1 to runs).map { run =>
-      val timeTaken = parserFunc()
-      //println(s"$parserName valid run $run: $timeTaken ms")
-      timeTaken
-    }
-    val avgTime = times.sum.toDouble / times.length
-    println(f"$parserName average time after warm-up: $avgTime%.2f ms")
+    val start = System.nanoTime()
+    (1 to runs).foreach { _ => parserFunc() }
+    val end = System.nanoTime()
+    val avgTime = (end - start) / 1000000.0 / runs
+    println(f"$parserName average time after warm-up: $avgTime%.3f ms")
   }
 }
