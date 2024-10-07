@@ -11,12 +11,11 @@ class MeerkatJSONParser{
   val obj: Nonterminal = syn { "{" ~ maybe(keyPair ~ keyPairs) ~ "}" }
   val arr: Nonterminal = syn { "[" ~ maybe(value ~ values) ~ "]" }
   val value: Nonterminal = syn { obj | arr | str | num | bool | `null` }
-
   def values: Nonterminal = syn {"," ~ value ~ values | epsilon}
   def keyPairs: Nonterminal = syn {"," ~ keyPair ~ keyPairs | epsilon}
   val keyPair: Nonterminal = syn {str ~ ":" ~ value}
-
   def maybe(p: SequenceBuilder[NoValue]): Nonterminal = syn { p | epsilon }
+
   // Function to parse
   def parse(input: String): Either[String, Any] = {
     exec(value, input) match {
