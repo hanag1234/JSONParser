@@ -72,19 +72,20 @@ class MeerkatJSONParser {
   )
 
   // JSON objects
-  val keyPair: Nonterminal & (String, JSONValue) = syn {
-    (str ~ ":" ~ value) & { case key ~ v => key.value -> v 
-    } | "$" & (_ => ???)  // This is a hack to make Meerkat macros work
-  }
+  val keyPair: Nonterminal & (String, JSONValue) = syn (
+    (str ~ ":" ~ value) & { case key ~ v => key.value -> v }
+    | "$" & (_ => ???)  // This is a hack to make Meerkat macros work
+  )
 
   // JSONObject AST nodes
-  val obj: Nonterminal & JSONObject = syn {
+  val obj: Nonterminal & JSONObject = syn (
     ("{" ~ maybe(keyPair ~ keyPairs) ~ "}") & {
       case Some(firstPair ~ restPairs) =>
         JSONObject((firstPair +: restPairs).toMap)
       case None => JSONObject(Map.empty)
-    } | "$" & (_ => ???)  // This is a hack to make Meerkat macros work
-  }
+    }
+    | "$" ^ (_ => ???)  // This is a hack to make Meerkat macros work
+  )
 
   // JSONArray AST nodes
   val arr: Nonterminal & JSONArray = syn {
@@ -92,7 +93,7 @@ class MeerkatJSONParser {
       case Some(firstValue ~ restValues) =>
         JSONArray(firstValue +: restValues)
       case None => JSONArray(Seq.empty)
-    } | "$" & (_ => ???)  // This is a hack to make Meerkat macros work
+    } | "$" ^ (_ => ???)  // This is a hack to make Meerkat macros work
   }
   // Values: objects, arrays, strings, numbers, booleans, or null
   val value: Nonterminal & JSONValue = syn {
@@ -122,10 +123,7 @@ class MeerkatJSONParser {
         Left(s"Parse error: $error") // Return the error as a Left
       case Right(result) =>
         println(s"Meerkat parse succeeded: $result") // Log the success
-        Right(
-          //result.asInstanceOf[ParseSuccess].value
-          ???
-        ) // Return the successful result as a Right
+        Right(result)
     }
   }
 }
