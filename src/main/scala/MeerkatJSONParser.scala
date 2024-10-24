@@ -2,60 +2,12 @@ import org.meerkat.Syntax._
 import org.meerkat.parsers.{Seq => _, _}
 import Parsers._
 
-//class MeerkatJSONParser{
-//  //val num: Nonterminal = syn("[0-9]+".r)
-//  val num: Nonterminal = syn("[0-9]+".r) & { case s: String => JSONNumber(s.toDouble) }
-//  //val str: Nonterminal = syn("\"[^\"]*\"".r)
-//  val str: Nonterminal = syn("\"[^\"]*\"".r) & { case s: String => JSONString(s.substring(1, s.length - 1)) }
-//  //val `null`: Nonterminal = syn("null")
-//  val `null`: Nonterminal = syn("null") & { _ => JSONNull }
-//  //val bool: Nonterminal = syn("true" | "false")
-//  val bool: Nonterminal = syn("true" | "false") & { case s: String => JSONBoolean(s.toBoolean) }
-//  //val obj: Nonterminal = syn { "{" ~ maybe(keyPair ~ keyPairs) ~ "}" }
-//  val obj: Nonterminal = syn { "{" ~ maybe(keyPair ~ keyPairs) ~ "}" } & {
-//    case _ ~ pairsOpt ~ _ =>
-//      pairsOpt match {
-//        case Some(pair ~ rest) => JSONObject((Seq(pair) ++ rest).toMap)
-//        case None              => JSONObject(Map.empty)
-//      }
-//  }
-//  //val arr: Nonterminal = syn { "[" ~ maybe(value ~ values) ~ "]" }
-//  val arr: Nonterminal = syn { "[" ~ maybe(value ~ values) ~ "]" } & {
-//    case _ ~ Some(firstValue ~ restValues) ~ _ => JSONArray(firstValue +: restValues)
-//    case _ ~ None ~ _                          => JSONArray(Seq.empty)
-//  }
-//  val value: Nonterminal = syn { obj | arr | str | num | bool | `null` }
-//  //def values: Nonterminal = syn {"," ~ value ~ values | epsilon}
-//  def values: Nonterminal = syn { "," ~ value ~ values | epsilon } & { case _ ~ v ~ vs => v +: vs }
-//  //def keyPairs: Nonterminal = syn {"," ~ keyPair ~ keyPairs | epsilon}
-//  def keyPairs: Nonterminal = syn { "," ~ keyPair ~ keyPairs | epsilon } & {
-//    case _ ~ kp ~ kps => kp +: kps
-//    case _            => Seq.empty
-//  }
-//  //val keyPair: Nonterminal = syn {str ~ ":" ~ value}
-//  val keyPair: Nonterminal = syn { str ~ ":" ~ value } & { case key ~ _ ~ v => key.value -> v }
-//  def maybe(p: SequenceBuilder[NoValue]): Nonterminal = syn { p | epsilon }
-//
-//  // Function to parse
-//  def parse(input: String): Either[String, Any] = {
-//    exec(value, input) match {
-//      case Left(error) =>
-//        println(s"Meerkat parse error: $error") // Log the error
-//        Left(s"Parse error: $error")            // Return the error as a Left
-//      case Right(result) =>
-//        println(s"Meerkat parse succeeded: $result") // Log the success
-//        Right(result)                                // Return the successful result as a Right
-//    }
-//  }
-//}
-
 class MeerkatJSONParser {
 
   // JSONNumber AST nodes
   val num: Nonterminal & JSONNumber = syn(
     "[0-9]+".r ^ ((s: String) => JSONNumber(s.toDouble))
   )
-  // val num: Nonterminal & JSONNumber = syn("[0-9]+".r) ^ ((s: String) => JSONNumber(s.toDouble))\
 
   // JSONString AST nodes
   val str: Nonterminal & JSONString = syn(
@@ -71,29 +23,39 @@ class MeerkatJSONParser {
     | "false" & (_ => JSONBoolean(false))
   )
 
+  // Semantic action for building empty sequences out of literals
+  def emptySeqF[T] = (_:String) => Seq.empty[T]
+
+  // This is an alternative to the tuple type because the `convert` function in SPPFVisitor rewrites tuples.
+  // In general, we cannot have `()` or pairs as parser return types (even if they are inside sequences).
+  //
+  // This is a Meerkat bug, so we should modify it to use custom types rather than tuples.
+  case class T[+A,+B](_1: A, _2: B) {
+    def toTuple: (A, B) = (_1, _2)
+  }
+
   // JSON objects
-  val keyPair: Nonterminal & (String, JSONValue) = syn (
-    (str ~ ":" ~ value) & { case key ~ v => key.value -> v }
-    | "$" & (_ => ???)  // This is a hack to make Meerkat macros work
+  val keyPair: Nonterminal & T[String, JSONValue] = syn (
+    (str ~ ":" ~ value) & { case key ~ v => T(key.value, v) }
   )
 
   // JSONObject AST nodes
   val obj: Nonterminal & JSONObject = syn (
-    ("{" ~ maybe(keyPair ~ keyPairs) ~ "}") & {
-      case Some(firstPair ~ restPairs) =>
-        JSONObject((firstPair +: restPairs).toMap)
+    ("{" ~ maybeKeyPairs ~ "}") & {
+      case Some(firstPair ~ restPairs) => {
+        JSONObject((firstPair +: restPairs).map(_.toTuple).toMap)
+      }
       case None => JSONObject(Map.empty)
     }
-    | "$" ^ (_ => ???)  // This is a hack to make Meerkat macros work
   )
 
   // JSONArray AST nodes
   val arr: Nonterminal & JSONArray = syn {
-    ("[" ~ maybe(value ~ values) ~ "]") & {
+    ("[" ~ maybeValues ~ "]") & {
       case Some(firstValue ~ restValues) =>
         JSONArray(firstValue +: restValues)
       case None => JSONArray(Seq.empty)
-    } | "$" ^ (_ => ???)  // This is a hack to make Meerkat macros work
+    }
   }
   // Values: objects, arrays, strings, numbers, booleans, or null
   val value: Nonterminal & JSONValue = syn {
@@ -101,20 +63,23 @@ class MeerkatJSONParser {
   }
 
   // csv in arrays
-  def values: Nonterminal & Seq[JSONValue] = syn {
-    ("," ~ value ~ values & { case v ~ vs => v +: vs }) | (epsilon & { case _ => Seq.empty })
+  val values: Nonterminal & Seq[JSONValue] = syn {
+    ("," ~ value ~ values & { case v ~ vs => v +: vs }) | (epsilon ^ emptySeqF)
   }
 
   // csv pairs in objects
-  val keyPairs: Nonterminal & Seq[(String, JSONValue)] = syn {
-    ("," ~ keyPair ~ keyPairs & { case kp ~ kps => kp +: kps }) | (epsilon & { case _ =>
-      Seq.empty
-    })
+  val keyPairs: Nonterminal & Seq[T[String, JSONValue]] = syn {
+    ("," ~ keyPair ~ keyPairs & { case kp ~ kps => {
+      kp +: kps }}) | (epsilon ^ emptySeqF)
   }
 
-  def maybe[A](p: SequenceBuilder[A]): Nonterminal & Option[A] = syn { 
-    p & { case v => Some(v) } | epsilon & { case _ => None }
-   }
+  val maybeKeyPairs = syn (
+    (keyPair ~ keyPairs) & { Some(_) }
+    | epsilon ^ { case _ => None }
+  )
+  val maybeValues = syn {
+    (value ~ values) & { Some(_) } | epsilon ^ { case _ => None }
+  }
 
   def parse(input: String): Either[String, JSONValue] = {
     exec(value, input) match {
